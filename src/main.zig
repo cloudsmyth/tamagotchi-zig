@@ -1,17 +1,46 @@
 const std = @import("std");
 const Pet = @import("pet.zig").Pet;
 
+pub fn clearScreen() void {
+    std.debug.print("\x1b[2J\x1b[H", .{});
+}
+
+pub fn gameLoop(pet: *Pet, mutex: *std.Thread.Mutex) void {
+    while (true) {
+        std.Thread.sleep(std.time.ns_per_s);
+
+        mutex.lock();
+        if (!pet.alive) {
+            mutex.unlock();
+            break;
+        }
+        clearScreen();
+        pet.update();
+
+        std.debug.print("\n--- Status ---\n", .{});
+        std.debug.print("Hunger: {d}/100\n", .{pet.hunger});
+        std.debug.print("Happiness: {d}/100\n", .{pet.happiness});
+        std.debug.print("Age: {d}s\n", .{pet.age_seconds});
+        std.debug.print("[F]eed [P]lay [Q]uit\n>", .{});
+        mutex.unlock();
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     //const allocator = gpa.allocator();
 
     var pet = Pet.init();
+    var mutex = std.Thread.Mutex{};
 
     std.debug.print("Your pet has hatched!", .{});
 
+    const update_thread = try std.Thread.spawn(.{}, gameLoop, .{ &pet, &mutex });
+    defer update_thread.join();
+
     while (pet.alive) {
-        pet.update();
+        mutex.lock();
 
         std.debug.print("\n--- Status ---\n", .{});
         std.debug.print("Hunger: {d}/100\n", .{pet.hunger});
@@ -19,6 +48,7 @@ pub fn main() !void {
         std.debug.print("Age: {d}s\n", .{pet.age_seconds});
 
         std.debug.print("[F]eed [P]lay [Q]uit\n", .{});
+        mutex.unlock();
 
         var stdin_buffer: [1024]u8 = undefined;
         var stdin: std.fs.File = std.fs.File.stdin();
@@ -37,7 +67,10 @@ pub fn main() !void {
                         pet.play();
                         std.debug.print("Pet has played and is feeling happier!\n", .{});
                     },
-                    'q', 'Q' => break,
+                    'q', 'Q' => {
+                        pet.alive = false;
+                        break;
+                    },
                     else => std.debug.print("Please choose a valid command\n", .{}),
                 }
             }

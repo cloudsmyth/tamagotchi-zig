@@ -14,15 +14,26 @@ pub const Pet = struct {
     pub fn update(self: *Pet) void {
         const now = std.time.timestamp();
         const elapsed = now - self.last_update;
+        if (elapsed < 1) return;
 
-        const decay = @as(u8, @intCast(@divFloor(elapsed, 6)));
+        const minutes_elapsed = @divFloor(elapsed, 60);
 
-        if (self.hunger > decay) {
-            self.hunger -= decay;
-        } else {
-            self.happiness = 0;
+        if (minutes_elapsed > 0) {
+            const decay = @as(u8, @intCast(@divFloor(minutes_elapsed, 100)));
+
+            if (self.hunger > decay) {
+                self.hunger -= decay;
+            } else {
+                self.hunger = 0;
+                self.alive = false;
+            }
+
+            if (self.happiness > decay) {
+                self.happiness -= decay;
+            } else {
+                self.happiness = 0;
+            }
         }
-
         self.age_seconds += @as(u64, @intCast(elapsed));
         self.last_update = now;
     }
