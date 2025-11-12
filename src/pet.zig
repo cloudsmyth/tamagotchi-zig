@@ -48,7 +48,7 @@ pub const Pet = struct {
 
     pub fn play(self: *Pet) void {
         if (self.happiness + 20 > 100) {
-            self.happiness += 100;
+            self.happiness = 100;
         } else {
             self.happiness += 20;
         }
